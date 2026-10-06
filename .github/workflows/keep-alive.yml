@@ -1,0 +1,37 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # 每月 1 号 00:00 UTC 运行，约等于每 30 天
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Commit then remove a keep-alive file
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          # 1) 创建并提交
+          echo "Last alive: $DATE" > .keep-alive
+          git add .keep-alive
+          git commit -m "chore: keep-alive $DATE"
+          git push
+
+          # 2) 删除并提交
+          git rm .keep-alive
+          git commit -m "chore: remove keep-alive file"
+          git push
