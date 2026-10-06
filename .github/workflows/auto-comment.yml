@@ -1,0 +1,52 @@
+name: Auto Comment on PenguinAgent Issues
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  auto-comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto comment on issues
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          REPO: HuHoBot/PenguinAgent
+          COMMENT_BODY: |
+            # 感谢您的反馈，我们会评估相关策略，感谢对HuHoBot-PenguinAgent的支持
+        run: |
+          set -euo pipefail
+
+          echo "Fetching issues from $REPO ..."
+          issue_numbers=$(gh issue list \
+            --repo "$REPO" \
+            --state all \
+            --json number \
+            --limit 1000 \
+            --jq '.[].number')
+
+          if [ -z "$issue_numbers" ]; then
+            echo "No issues found."
+            exit 0
+          fi
+
+          for num in $issue_numbers; do
+            echo "Checking issue #$num ..."
+
+            comments=$(gh issue view "$num" \
+              --repo "$REPO" \
+              --json comments \
+              --jq '.comments[].body' 2>/dev/null || echo "")
+
+            if printf '%s' "$comments" | grep -qF "$COMMENT_BODY"; then
+              echo "  -> Already has the comment. Skipping."
+            else
+              echo "  -> Adding comment..."
+              gh issue comment "$num" --repo "$REPO" --body "$COMMENT_BODY"
+              echo "  -> Done."
+            fi
+          done
